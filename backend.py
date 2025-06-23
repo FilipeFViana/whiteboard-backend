@@ -187,6 +187,16 @@ async def websocket_frontend(websocket: WebSocket, token: str = Query(None)):
                         print("❌ Erro ao atualizar posição do objeto:", e)
                     continue
 
+                # 👇 adicione logo acima do insert_result
+                if tipo == "desenho" and acao in ["undo", "redo"]:
+                    for cliente in frontends:
+                        if cliente.application_state == WebSocketState.CONNECTED and cliente != websocket:
+                            await cliente.send_json({
+                                "tipo": tipo,
+                                "acao": acao,
+                                "conteudo": conteudo
+                            })
+                    continue
 
                 insert_result = supabase_client.table("objetos").insert({
                     "usuario_id": usuario_id,
@@ -210,6 +220,11 @@ async def websocket_frontend(websocket: WebSocket, token: str = Query(None)):
 
                     if tipo == "resetar":
                         estado_atual = []
+                        for cliente in frontends:
+                            if cliente.application_state == WebSocketState.CONNECTED and cliente != websocket:
+                                await cliente.send_json({
+                                    "tipo": "resetar"
+                                })
                     elif tipo == "desenho" and acao == "remover_objeto":
                         objeto_id_removido = conteudo.get("id")
                         if objeto_id_removido in estado_atual:
